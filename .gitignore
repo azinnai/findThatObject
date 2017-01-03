@@ -27,3 +27,7 @@
 *.exe
 *.out
 *.app
+
+#code::block file
+*.cbp
+*.layout
