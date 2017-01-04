@@ -30,6 +30,7 @@
 
 #code::block file
 *.layout
+*.depend
 
 /bin
 /obj
