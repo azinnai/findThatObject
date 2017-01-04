@@ -6,14 +6,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <set>
+
 
 //using namespace std;
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
+
 
 using namespace Eigen;
+
+#include "icp.h"
 
 template<typename M>
 M load_csv (const std::string & path) {
@@ -46,16 +50,32 @@ M load_csv (const std::string & path) {
     return mf;
 }
 
+MatrixXd rotateSamples(const Ref<const MatrixXd>& samples){
 
+    Matrix3d R;
+
+    R = AngleAxisd(double(0.0), Vector3d::UnitX())
+        * AngleAxisd(double(0.0),  Vector3d::UnitY())
+        * AngleAxisd(double(0.01), Vector3d::UnitZ());
+
+
+    return R * samples;
+
+}
 
 
 
 int main()
 {
-    MatrixXd globe, globeScene;
-    globe = load_csv<MatrixXd>("globe-scene.txt");
-    globeScene = (load_csv<MatrixXd>("globe.txt"));
+    MatrixXd globe, globeScene, initialGuess(4,4);
+    globe = load_csv<MatrixXd>("globe.txt");
+    globeScene = load_csv<MatrixXd>("globe.txt");
+    std::cout << "inner " << globe.size() << " outer " << globeScene.size() <<std::endl;
+    icp prova(globe, rotateSamples(globeScene));
+    prova.setInitialGuess(initialGuess.setIdentity());
+    icp::icpRes results = prova.allignClouds(20);
 
-
+    std::cout << " trasformation matrix : \n\n" << results.newGuess <<
+                " \n\n chi \n\n" << results.chi << std::endl;
     return 0;
 }

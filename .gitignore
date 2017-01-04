@@ -29,5 +29,8 @@
 *.app
 
 #code::block file
-*.cbp
 *.layout
+
+/bin
+/obj
+
