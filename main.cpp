@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <math.h>
+
 
 
 //using namespace std;
@@ -50,32 +52,45 @@ M load_csv (const std::string & path) {
     return mf;
 }
 
-MatrixXd rotateSamples(const Ref<const MatrixXd>& samples){
-
-    Matrix3d R;
-
-    R = AngleAxisd(double(0.0), Vector3d::UnitX())
-        * AngleAxisd(double(0.0),  Vector3d::UnitY())
-        * AngleAxisd(double(0.01), Vector3d::UnitZ());
-
-
-    return R * samples;
-
-}
-
-
 
 int main()
 {
-    MatrixXd globe, globeScene, initialGuess(4,4);
+    MatrixXd globe, globeR(3,3), globeR_hom(3,3), X_Guess(4,4);
+
+    Matrix4d X_true;
+    VectorXd x_true(6);
+
     globe = load_csv<MatrixXd>("globe.txt");
-    globeScene = load_csv<MatrixXd>("globe.txt");
-    std::cout << "inner " << globe.size() << " outer " << globeScene.size() <<std::endl;
-    icp prova(globe, rotateSamples(globeScene));
-    prova.setInitialGuess(initialGuess.setIdentity());
-    icp::icpRes results = prova.allignClouds(20);
+    //globeScene = load_csv<MatrixXd>("globe.txt");
+    //globe = MatrixXd::Random(3,10);
+    std::cout << "inner " << globe.cols() << " outer " << globe.rows() <<std::endl;
+
+    globeR.resize(globe.rows(), globe.cols());
+    globeR_hom.resize(globe.rows()+1, globe.cols());
+    globeR_hom.setIdentity();
+
+    x_true << 0.0,0.0,0.0, M_PI/2, M_PI/3, M_PI/6;
+    X_true = v2t(x_true);
+
+    globeR_hom.topRows(3) = globe;
+    globeR_hom= X_true * globeR_hom;
+
+    globeR = globeR_hom.topRows(3);
+
+    //try to insert some noise.
+    VectorXd movement(6);
+    movement << 0.0,0.0,0.0,0.0,0.0,0.0;
+    X_Guess = v2t(x_true + movement);
+
+    double kernel_treshold(pow(10,1));
+    icp test(globe, globeR);
+    test.setInitialGuess(X_Guess);
+    icp::icpResults results = test.allignClouds(20, kernel_treshold); //number of iterations;
 
     std::cout << " trasformation matrix : \n\n" << results.newGuess <<
-                " \n\n chi \n\n" << results.chi << std::endl;
+                " \n\n chi \n\n" << results.chi <<
+                "\n\n matrix difference \n\n"<< X_true-results.newGuess<<
+                std::endl;
+
     return 0;
 }

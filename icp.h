@@ -17,7 +17,7 @@ using namespace Eigen;
 class icp {
     private:
         MatrixXd firstCloud, secondCloud;
-        Matrix4d transformMatrix, initialGuess, newGuess;
+        Matrix4d transformMatrix, initialGuess;
 
 
     public:
@@ -26,7 +26,7 @@ class icp {
             MatrixXd J;
         };
 
-        struct icpRes {
+        struct icpResults {
             MatrixXd newGuess;
             VectorXd chi;
         };
@@ -34,8 +34,7 @@ class icp {
         void setFirstCloud(const Ref<const MatrixXd>& cloud);
         void setSecondCloud(const Ref<const MatrixXd>& cloud);
         void setInitialGuess(const Ref<const Matrix4d>& x_guess);
-        icpRes allignClouds(int n_it);
-        Matrix4d v2t(const VectorXd& x);
+        icpResults allignClouds(int n_it, double kernel_threshold);
         eJs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
                                         const Vector3d& p,
                                         const Vector3d& z);
@@ -45,6 +44,10 @@ class icp {
         ~icp();
 };
 
+Matrix4d v2t(const VectorXd& x);
+Matrix3d Rx(double alpha);
+Matrix3d Ry(double alpha);
+Matrix3d Rz(double alpha);
 
 
 #endif // ICP_H_INCLUDED
