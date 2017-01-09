@@ -2,32 +2,24 @@
 #include <string>
 #include <fstream>
 #include <vector>
-#include <istream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <math.h>
-
-
-
-//using namespace std;
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
-
-using namespace Eigen;
-
 #include "icp.h"
+#include "geometry.h"
+
+#include <Eigen/Dense>
+#include <Eigen/Core>
 
 template<typename M>
 M load_csv (const std::string & path) {
     std::ifstream indata;
     std::string line;
     std::vector<double> values;
-    MatrixXd mf;
-    int rows=0;
+    MatrixXd md;
+    int cols=0;
     indata.open(path);
 
     if(!indata.is_open()){
@@ -44,12 +36,12 @@ M load_csv (const std::string & path) {
             values.push_back(std::stod(cell));
         }
 
-        ++rows;
+        ++cols;
     }
 
-    mf = MatrixXd::Map(&values[0], 3, rows); // THE ORDER OF EIGEN MATRIX IS COLUMN MAJOR!
+    md = MatrixXd::Map(&values[0], 3, cols); // THE ORDER OF EIGEN MATRIX IS COLUMN MAJOR!
 
-    return mf;
+    return md;
 }
 
 
@@ -91,6 +83,8 @@ int main()
                 " \n\n chi \n\n" << results.chi <<
                 "\n\n matrix difference \n\n"<< X_true-results.newGuess<<
                 std::endl;
+
+
 
     return 0;
 }

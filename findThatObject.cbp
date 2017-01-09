@@ -34,6 +34,8 @@
 			<Add option="-Wall" />
 			<Add option="-fexceptions" />
 		</Compiler>
+		<Unit filename="geometry.cpp" />
+		<Unit filename="geometry.h" />
 		<Unit filename="icp.cpp" />
 		<Unit filename="icp.h" />
 		<Unit filename="main.cpp" />

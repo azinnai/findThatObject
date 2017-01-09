@@ -2,15 +2,17 @@
 #define ICP_H_INCLUDED
 
 #include <vector>
-#include <istream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
+#include <fstream>
+#include <boost/serialization/vector.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include "plotPointCloud.h"
+#include "geometry.h"
 
 using namespace Eigen;
+
 
 
 
@@ -20,10 +22,12 @@ class icp {
         Matrix4d transformMatrix, initialGuess;
 
 
+
     public:
-        struct eJs {
-            Vector3d e;
+        struct eJzs {
+            Vector3d e,z;
             MatrixXd J;
+
         };
 
         struct icpResults {
@@ -35,7 +39,7 @@ class icp {
         void setSecondCloud(const Ref<const MatrixXd>& cloud);
         void setInitialGuess(const Ref<const Matrix4d>& x_guess);
         icpResults allignClouds(int n_it, double kernel_threshold);
-        eJs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
+        eJzs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
                                         const Vector3d& p,
                                         const Vector3d& z);
 
@@ -44,10 +48,6 @@ class icp {
         ~icp();
 };
 
-Matrix4d v2t(const VectorXd& x);
-Matrix3d Rx(double alpha);
-Matrix3d Ry(double alpha);
-Matrix3d Rz(double alpha);
 
 
 #endif // ICP_H_INCLUDED
