@@ -11,11 +11,14 @@
 #include <string>
 #include <sstream>
 #include <stdlib.h>
+#include <math.h>
+#include <random>
+
 
 
 void display (void);
 void draw (std::string& path);
-
+//void draw(void);
 
 
 #endif // PLOTPOINTCLOUD_H_INCLUDED

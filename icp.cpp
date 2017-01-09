@@ -86,7 +86,7 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
         trasformedGlobe.close();
 
         draw(path); //opengl drawing
-
+    //draw();
 
 
 

@@ -39,6 +39,8 @@
 		<Unit filename="icp.cpp" />
 		<Unit filename="icp.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="plotPointCloud.cpp" />
+		<Unit filename="plotPointCloud.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />
