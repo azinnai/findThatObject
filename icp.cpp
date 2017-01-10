@@ -40,8 +40,8 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
     eJzs ejz; //error and jacobian struct
     chi_stats.setZero();
     num_inliers.setZero();
-    std::ofstream trasformedGlobe;
-    std::string path("trasformedGlobe.txt");
+    std::ofstream trasformedCloud;
+    std::string path0("trasformedCloud"), path;
 
     X = initialGuess;
 
@@ -52,15 +52,14 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
         H.setZero();
         b.setZero();
         chi_stats(it) = 0;
-
-        trasformedGlobe.open(path, std::ofstream::out | std::ofstream::trunc);
-
-        //std::cout << "it : " << it << "\n newGues \n" << newGuess << "\n chi \n" <<chi << std::endl;
+        path = path0 + std::to_string(it) + ".txt";
+        trasformedCloud.open(path, std::ofstream::out | std::ofstream::trunc);
 
         for (int i = 0; i < secondCloud.cols(); i++){
 
             ejz = errorAndJacobianManifold(X, firstCloud.col(i), secondCloud.col(i));
             chi = ejz.e.transpose() * ejz.e;
+
             //std::cout<< "col difference: " << firstCloud.col(i)- secondCloud.col(i)<< std::endl;
             if(chi>kernel_threshold){
                 ejz.e = ejz.e*sqrt(kernel_threshold/chi);
@@ -72,25 +71,25 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
             chi_stats(it) += chi;
             H+=ejz.J.transpose() * ejz.J;
             b+=ejz.J.transpose() * ejz.e;
+
             for (int j=0; j<ejz.z.size(); ++j)
-                trasformedGlobe << ejz.z[j] << " ";
+                trasformedCloud << ejz.z[j] << " ";
 
-            trasformedGlobe << "\n";
+            trasformedCloud << "\n";
 
-            //std::cout << "chi : " << chi << std::endl;
         }
-        trasformedGlobe.close();
+
         dx = -H.colPivHouseholderQr().solve(b);
         X = v2t(dx) * X;
+
         std::cout << "inliers % " << num_inliers(it)/firstCloud.cols() << std::endl;
-        trasformedGlobe.close();
+
+        trasformedCloud.close();
 
         draw(path); //opengl drawing
-    //draw();
-
-
-
     }
+
+
     icpResults results;
     results.chi = chi_stats;
     results.newGuess = X;
@@ -120,8 +119,6 @@ icp::eJzs icp::errorAndJacobianManifold(const Ref<const Matrix4d>& x,
 
     J.leftCols(3).setIdentity();
     J.rightCols(3) = -skew_z_hat;
-
-    //std::cout<<"J \n"<< J <<std::endl;
 
     ej.e = e;
     ej.J = J;

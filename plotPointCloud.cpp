@@ -3,15 +3,15 @@
 std::string cloudPath;
 
 // angle of rotation for the camera direction
-float angle = 0.0f;
+float pitch = 0.0f, yaw = 0.0f;
 // actual vector representing the camera's direction
-float lx=0.0f,lz=-1.0f;
+float lx=0.0f, lz=-1.0f, ly=0.0f;
 // XZ position of the camera
-float x=0.0f, z=5.0f;
+float x=0.0f, z=5.0f, y=0.0f;
 // the key states. These variables will be zero
 //when no key is being presses
-float deltaAngle = 0.0f;
-float deltaMove = 0;
+float pitchRate = 0.0f, yawRate = 0.0f;
+float deltaMoveX = 0, deltaMoveY = 0, deltaMoveZ = 0;
 
 void changeSize(int w, int h) {
 
@@ -31,7 +31,7 @@ void changeSize(int w, int h) {
 	glViewport(0, 0, w, h);
 
 	// Set the correct perspective.
-	gluPerspective(45.0f, ratio, 0.1f, 100.0f);
+	gluPerspective(90.0f, ratio, 0.001f, 100.0f);
 
 	// Get Back to the Modelview
 	glMatrixMode(GL_MODELVIEW);
@@ -65,25 +65,28 @@ void drawSnowMan() {
 	glutSolidCone(0.08f,0.5f,10,2);
 }
 
-void computePos(float deltaMove) {
+void computePos(float deltaMoveX, float deltaMoveY, float deltaMoveZ) {
 
-	x += deltaMove * lx * 0.1f;
-	z += deltaMove * lz * 0.1f;
+	x += deltaMoveX * lx * 0.1f;
+	z += deltaMoveZ * lz * 0.1f;
+	y += deltaMoveY * 0.1f;
 }
 
-void computeDir(float deltaAngle) {
+void computeDir(float yawRate, float pitchRate) {
 
-	angle += deltaAngle;
-	lx = sin(angle);
-	lz = -cos(angle);
+	yaw += yawRate;
+	pitch += pitchRate;
+	lx = cos(yaw)* sin(pitch);
+	ly = cos(pitch);
+	lz = -sin(pitch) * sin(yaw);
 }
 
 void renderScene(void) {
 
-	if (deltaMove)
-		computePos(deltaMove);
-	if (deltaAngle)
-		computeDir(deltaAngle);
+	if (deltaMoveX || deltaMoveY || deltaMoveZ)
+		computePos(deltaMoveX, deltaMoveY, deltaMoveZ);
+	if (yawRate || pitchRate)
+		computeDir(yawRate, pitchRate);
 
 	// Clear Color and Depth Buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -91,9 +94,12 @@ void renderScene(void) {
 	// Reset transformations
 	glLoadIdentity();
 	// Set the camera
-	gluLookAt(	x, 1.0f, z,
-				x+lx, 1.0f,  z+lz,
+	std::cout << "x: " << x << "  y :" << y << "  z :" << z << "\n"<<
+              "lx: " << lx << "  ly :" << ly << "  lz :" << lz << std::endl;
+	gluLookAt(	x, y, z,
+				x+lx, y+ly,  z+lz,
 				0.0f, 1.0f,  0.0f);
+
 
 
     std::ifstream indata;
@@ -140,23 +146,46 @@ void renderScene(void) {
 }
 
 
-void pressKey(int key, int xx, int yy) {
+void pressSpecialKey(int key, int xx, int yy) {
 
 	switch (key) {
-		case GLUT_KEY_LEFT : deltaAngle = -0.01f; break;
-		case GLUT_KEY_RIGHT : deltaAngle = 0.01f; break;
-		case GLUT_KEY_UP : deltaMove = 0.5f; break;
-		case GLUT_KEY_DOWN : deltaMove = -0.5f; break;
+		case GLUT_KEY_LEFT : yawRate = 0.02f; break;
+		case GLUT_KEY_RIGHT : yawRate = -0.02f; break;
+		case GLUT_KEY_UP : pitchRate = 0.02f; break;
+		case GLUT_KEY_DOWN : pitchRate = -0.02f; break;
 	}
 }
 
-void releaseKey(int key, int x, int y) {
+void releaseSpecialKey(int key, int x, int y) {
 
 	switch (key) {
 		case GLUT_KEY_LEFT :
-		case GLUT_KEY_RIGHT : deltaAngle = 0.0f;break;
+		case GLUT_KEY_RIGHT : yawRate = 0.0f;break;
 		case GLUT_KEY_UP :
-		case GLUT_KEY_DOWN : deltaMove = 0;break;
+		case GLUT_KEY_DOWN : pitchRate = 0.0f;break;
+	}
+}
+
+void pressKey(unsigned char key, int xx, int yy) {
+
+	switch (key) {
+		case 'w' : deltaMoveZ = 0.1f; break;
+		case 's' : deltaMoveZ = -0.1f; break;
+		case 'a' : deltaMoveX = 0.1f; break;
+		case 'd' : deltaMoveX = -0.1f; break;
+		case 'p' : deltaMoveY = 0.1f; break;
+		case 'l' : deltaMoveY = -0.1f; break;
+	}
+}
+void releaseKey(unsigned char key, int x, int y) {
+
+	switch (key) {
+        case 'w' :
+		case 's' : deltaMoveZ = 0.0f; break;
+		case 'a' :
+		case 'd' : deltaMoveX = 0.0f; break;
+		case 'p' :
+		case 'l' : deltaMoveY = 0.0f; break;
 	}
 }
 
@@ -181,11 +210,13 @@ void draw (std::string& path) {
     glutReshapeFunc(changeSize);
 	glutIdleFunc(renderScene);
 
-	glutSpecialFunc(pressKey);
+	glutSpecialFunc(pressSpecialKey);
+	glutKeyboardFunc(pressKey);
 
 	// here are the new entries
 	glutIgnoreKeyRepeat(1);
-	glutSpecialUpFunc(releaseKey);
+	glutSpecialUpFunc(releaseSpecialKey);
+	glutKeyboardUpFunc(releaseKey);
 
 	// OpenGL init
 	glEnable(GL_DEPTH_TEST);

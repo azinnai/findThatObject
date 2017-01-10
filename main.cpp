@@ -47,16 +47,15 @@ M load_csv (const std::string & path) {
 
 int main()
 {
-    MatrixXd globe, globeR(3,3), globeR_hom(3,3), X_Guess(4,4);
+    MatrixXd globe, globeR(3,3), globeR_hom(3,3), X_Guess(4,4), globeScene;
 
     Matrix4d X_true;
     VectorXd x_true(6);
 
     globe = load_csv<MatrixXd>("globe.txt");
-    //globeScene = load_csv<MatrixXd>("globe.txt");
-    //globe = MatrixXd::Random(3,10);
-    std::cout << "inner " << globe.cols() << " outer " << globe.rows() <<std::endl;
+    globeScene = load_csv<MatrixXd>("globe-scene.txt");
 
+/*
     globeR.resize(globe.rows(), globe.cols());
     globeR_hom.resize(globe.rows()+1, globe.cols());
     globeR_hom.setIdentity();
@@ -73,11 +72,14 @@ int main()
     VectorXd movement(6);
     movement << 0.0,0.0,0.0,0.0,0.0,0.0;
     X_Guess = v2t(x_true + movement);
-
+*/
     double kernel_treshold(pow(10,1));
-    icp test(globe, globeR);
+    int n_it = 20; //number of iterations of icp
+    X_Guess.setIdentity();
+
+    icp test(globe, globeScene);
     test.setInitialGuess(X_Guess);
-    icp::icpResults results = test.allignClouds(20, kernel_treshold); //number of iterations;
+    icp::icpResults results = test.allignClouds(n_it, kernel_treshold); //number of iterations;
 
     std::cout << " trasformation matrix : \n\n" << results.newGuess <<
                 " \n\n chi \n\n" << results.chi <<

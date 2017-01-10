@@ -19,7 +19,7 @@ using namespace Eigen;
 class icp {
     private:
         MatrixXd firstCloud, secondCloud;
-        Matrix4d transformMatrix, initialGuess;
+        Matrix4d initialGuess, finalGuess;
 
 
 
