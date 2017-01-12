@@ -4,12 +4,11 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <boost/serialization/vector.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include "plotPointCloud.h"
 #include "geometry.h"
+#include "pclVisualizer.h"
 
 using namespace Eigen;
 
@@ -33,6 +32,7 @@ class icp {
         struct icpResults {
             MatrixXd newGuess;
             VectorXd chi;
+            VectorXd sigma;
         };
 
         void setFirstCloud(const Ref<const MatrixXd>& cloud);
@@ -42,6 +42,9 @@ class icp {
         eJzs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
                                         const Vector3d& p,
                                         const Vector3d& z);
+        icpResults relaxAllignClouds(const Ref<const MatrixXd>& set1,
+                                        const Ref<const MatrixXd>& set2);
+
 
 
         icp(const Ref<const MatrixXd>&  cloud1, const Ref<const MatrixXd>& cloud2);

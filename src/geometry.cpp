@@ -17,6 +17,13 @@ Matrix4d v2t(const VectorXd& x){
     return T;
 }
 
+VectorXd t2v(const Ref<const MatrixXd>& X){
+    VectorXd v;
+    v = VectorXd::Map(X.data(), X.cols()*X.rows());
+    std::cout << "\n X \n" << X << "\n\n v \n" << v <<std::endl;
+    return v;
+}
+
 Matrix3d Rx(double alpha){
     Matrix3d R;
     double c(cos(alpha));

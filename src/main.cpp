@@ -10,11 +10,10 @@
 #include "icp.h"
 #include "geometry.h"
 
-#include <Eigen/Dense>
-#include <Eigen/Core>
 
 template<typename M>
 M load_csv (const std::string & path) {
+
     std::ifstream indata;
     std::string line;
     std::vector<double> values;
@@ -52,32 +51,30 @@ int main()
     Matrix4d X_true;
     VectorXd x_true(6);
 
-    globe = load_csv<MatrixXd>("globe.txt");
-    globeScene = load_csv<MatrixXd>("globe-scene.txt");
+    globe = load_csv<MatrixXd>("../globe.txt");
+    //globeScene = load_csv<MatrixXd>("globe-scene.txt");
 
-/*
+
     globeR.resize(globe.rows(), globe.cols());
     globeR_hom.resize(globe.rows()+1, globe.cols());
-    globeR_hom.setIdentity();
+    globeR_hom.row(3).setOnes();
 
-    x_true << 0.0,0.0,0.0, M_PI/2, M_PI/3, M_PI/6;
+    x_true << 0.10, 0.10,0.10, 0.7, 0.7, 0.7;
     X_true = v2t(x_true);
 
+    std::cout << "X_true  \n\n" << X_true << std::endl;
+
+
     globeR_hom.topRows(3) = globe;
-    globeR_hom= X_true * globeR_hom;
+    globeR_hom = X_true * globeR_hom;
 
     globeR = globeR_hom.topRows(3);
 
-    //try to insert some noise.
-    VectorXd movement(6);
-    movement << 0.0,0.0,0.0,0.0,0.0,0.0;
-    X_Guess = v2t(x_true + movement);
-*/
     double kernel_treshold(pow(10,1));
-    int n_it = 20; //number of iterations of icp
+    int n_it = 10; //number of iterations of icp
     X_Guess.setIdentity();
 
-    icp test(globe, globeScene);
+    /*icp test(globe, globeScene);
     test.setInitialGuess(X_Guess);
     icp::icpResults results = test.allignClouds(n_it, kernel_treshold); //number of iterations;
 
@@ -85,8 +82,24 @@ int main()
                 " \n\n chi \n\n" << results.chi <<
                 "\n\n matrix difference \n\n"<< X_true-results.newGuess<<
                 std::endl;
+    */
+
+    icp test(globe, globeR);
+    test.setInitialGuess(X_Guess);
+    icp::icpResults icpResults = test.allignClouds(n_it, kernel_treshold);
+
+    icp::icpResults results = test.relaxAllignClouds(globe, globeR);
 
 
+    std::cout << " trasformation matrix : \n\n" << icpResults.newGuess <<
+            "\n\n matrix difference \n\n"<< X_true*icpResults.newGuess<<
+            "\n\n chi matrix: \n\n " << icpResults.chi<<
+            std::endl;
 
+    /*std::cout << " trasformation matrix : \n\n" << results.newGuess <<
+            "\n\n matrix difference \n\n"<< X_true-results.newGuess<<
+            "\n\n sigma matrix: \n\n " << results.sigma <<
+            std::endl;
+*/
     return 0;
 }
