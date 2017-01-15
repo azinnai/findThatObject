@@ -1,11 +1,9 @@
 #include "icp.h"
 
 
-icp::icp(const Ref<const MatrixXd>& cloud1, const Ref<const MatrixXd>& cloud2):
-                                            firstCloud(cloud1),
-                                            secondCloud(cloud2)
+icp::icp()
 {
-    std::cout << "icp class created" << std::endl;
+    std::cout << "icp object created" << std::endl;
 }
 
 
@@ -13,31 +11,16 @@ icp::~icp(){
     std::cout << "icp object destructed" << std::endl;
 }
 
-void icp::setFirstCloud(const Ref<const MatrixXd>& cloud){
 
-    firstCloud = cloud;
-    std::cout << "first cloud set" << std::endl;
-
-}
-
-void icp::setSecondCloud(const Ref<const MatrixXd>& cloud){
-
-    secondCloud = cloud;
-    std::cout << "second cloud set" << std::endl;
-}
-
-void icp::setInitialGuess(const Ref<const Matrix4d>& x_guess){
-    initialGuess = x_guess;
-    std::cout << "initial guess set." << std::endl;
-}
-
-icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set2,
-                                        const Ref<const MatrixXd>& set1){
+icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
+                                        const Ref<const MatrixXd>& set2){
 
 
     VectorXd dx(12), b(12), x(12), e(3);
     MatrixXd H(12,12), X(4,4), Hi(3,12), A(3,3), R(3,3), M(3,9);
     icpResults results;
+    double chi=0;
+
 
     X.setIdentity();
 
@@ -51,19 +34,18 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set2,
     b.setZero();
 
     for (int i = 0; i < set1.cols(); i++){
-
         M.setZero();
 
-        M.block(0,0,1,3) = set1.col(i).transpose();
-        M.block(1,3,1,3) = set1.col(i).transpose();
-        M.block(2,6,1,3) = set1.col(i).transpose();
+        M.block(0,0,1,3) = set2.col(i).transpose();
+        M.block(1,3,1,3) = set2.col(i).transpose();
+        M.block(2,6,1,3) = set2.col(i).transpose();
 
 
         Hi.leftCols(9) = M;
         Hi.rightCols(3).setIdentity();
 
-        e = M * x.segment(0,9) + x.segment(9,3) - set2.col(i);
-
+        e = M * x.segment(0,9) + x.segment(9,3) - set1.col(i);
+        
 
         H+=Hi.transpose()*Hi;
         b+=Hi.transpose()*e;
@@ -88,11 +70,23 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set2,
     results.newGuess = X;
     results.sigma = svd.singularValues();
 
+    eJzs ejz; //error and jacobian struct
+
+    for (int j = 0; j < set1.cols(); j++){
+        ejz = errorAndJacobianManifold(X, set1.col(j), set2.col(j));
+        chi += ejz.e.transpose() * ejz.e;
+    }
+
+    results.totalError = chi/((double)set1.cols());
+
     return results; //the relaxed solution for the initial correspondences.
 }
 
 
-icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
+icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
+                                        const Ref<const MatrixXd>& secondCloud,
+                                        const Ref<const Matrix4d>& initialGuess,
+                                        int n_it, double kernel_threshold){
 
     VectorXd chi_stats(n_it);
     VectorXd num_inliers(n_it);
@@ -110,11 +104,7 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
         H.setZero();
         b.setZero();
         chi_stats(it) = 0;
-       /* std::string path;
-        std::ofstream trasformedCloud;
-        path = "trasformedCLoud.txt";
-        trasformedCloud.open(path, std::ofstream::out | std::ofstream::trunc);
-*/
+      
         for (int i = 0; i < secondCloud.cols(); i++){
 
             ejz = errorAndJacobianManifold(X, firstCloud.col(i), secondCloud.col(i));
@@ -132,22 +122,15 @@ icp::icpResults icp::allignClouds(int n_it, double kernel_threshold){
             H+=ejz.J.transpose() * ejz.J;
             b+=ejz.J.transpose() * ejz.e;
 
-           /* for (int j=0; j<ejz.z.size(); ++j)
-                trasformedCloud << ejz.z[j] << " ";
-
-            trasformedCloud << "\n";
-            */
         }
         dx = -H.ldlt().solve(b);
         X = v2t(dx) * X ;
-        Vector3d rgb1, rgb2;
-        rgb1 << 255,0,0;
-        rgb2 << 0,255,0;
-        pointCloudVis(firstCloud, secondCloud, X, rgb1, rgb2);
+        //Vector3d rgb1, rgb2;
+        //rgb1 << 255,0,0;
+        //rgb2 << 0,255,0;
+        //pointCloudVis(firstCloud, secondCloud, X, rgb1, rgb2);
 
-       // std::cout << "inliers % " << num_inliers(it)/firstCloud.cols() << std::endl;
-        //trasformedCloud.close();
-        //draw(path); //opengl drawing
+      
     }
 
 

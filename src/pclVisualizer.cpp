@@ -134,5 +134,7 @@ void pointCloudVis(const Ref<const MatrixXd>& cloud1, const Ref<const MatrixXd>&
         boost::this_thread::sleep (boost::posix_time::microseconds (100000));
     }
 
+    viewer->close();
+
 
 }
