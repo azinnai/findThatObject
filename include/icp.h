@@ -9,8 +9,20 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <pcl/kdtree/kdtree_flann.h>
+#include <boost/thread/thread.hpp>
+#include <pcl/range_image/range_image.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/range_image_visualizer.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/features/range_image_border_extractor.h>
+#include <pcl/keypoints/narf_keypoint.h>
+#include <pcl/console/parse.h>
+#include <pcl/keypoints/uniform_sampling.h>
+
+
+
+
 #include "geometry.h"
-#include "pclVisualizer.h"
 
 using namespace Eigen;
 
@@ -27,7 +39,7 @@ class icp {
 
         struct icpResults {
             MatrixXd newGuess;
-            VectorXd chi;
+            double chi;
             VectorXd sigma;
             double totalError;
         };
@@ -46,7 +58,7 @@ class icp {
         icpResults allignClouds(const Ref<const MatrixXd>& firstCloud,
                                         const Ref<const MatrixXd>& secondCloud,
                                         const Ref<const Matrix4d>& initialGuess,
-                                        int n_it, double kernel_threshold);
+                                        double kernel_threshold);
         eJzs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
                                         const Vector3d& z,
                                         const Vector3d& p);
@@ -59,11 +71,12 @@ class icp {
                         std::map<int, std::pair<int, double>>& correspondences);
         std::map<int,std::pair<int, double>> findCorrespondences(const Ref<const MatrixXd>& cloud, 
                                                 double squaredDistanceThreshold,
-                                                pcl::KdTreeFLANN<pcl::PointXYZ> kdtree);
+                                                pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree);
         MatrixXd mapToMatrix(const std::map<int, Vector3d>& map);
         pcl::KdTreeFLANN<pcl::PointXYZ> kdTreeBuild(const Ref<const MatrixXd>& cloudEigen);
-
-
+        pcl::RangeImage exctractNARFkeyPoints(const Ref<const MatrixXd>& cloud);
+        void exctractUSkeyPoints(const Ref<const MatrixXd>& cloud,   pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints,
+                                        float radiusSearch);
         icp();
         ~icp();
 };

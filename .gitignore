@@ -32,7 +32,6 @@
 *.layout
 *.depend
 
-/bin
-/obj
-
-/build
+/*
+!/src
+!/include

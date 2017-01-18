@@ -77,7 +77,7 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
         chi += ejz.e.transpose() * ejz.e;
     }
 
-    results.totalError = chi/((double)set1.cols());
+    results.totalError = chi;
 
     return results; //the relaxed solution for the initial correspondences.
 }
@@ -86,56 +86,35 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
 icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
                                         const Ref<const MatrixXd>& secondCloud,
                                         const Ref<const Matrix4d>& initialGuess,
-                                        int n_it, double kernel_threshold){
+                                        double kernel_threshold){
 
-    VectorXd chi_stats(n_it);
-    VectorXd num_inliers(n_it);
     VectorXd dx(6), b(6);
     MatrixXd H(6,6), X(4,4);
-    double chi;
+    double chi(0);
     eJzs ejz; //error and jacobian struct
-    chi_stats.setZero();
-    num_inliers.setZero();
 
     X = initialGuess;
 
-    for (int it = 0; it < n_it ; it++){
+    H.setZero();
+    b.setZero();
 
-        H.setZero();
-        b.setZero();
-        chi_stats(it) = 0;
-      
-        for (int i = 0; i < secondCloud.cols(); i++){
+    for (int i = 0; i < secondCloud.cols(); i++){
 
-            ejz = errorAndJacobianManifold(X, firstCloud.col(i), secondCloud.col(i));
-            chi = ejz.e.transpose() * ejz.e;
-
-            //std::cout<< "col difference: " << firstCloud.col(i)- secondCloud.col(i)<< std::endl;
-            if(chi>kernel_threshold){
-                ejz.e = ejz.e*sqrt(kernel_threshold/chi);
-                chi = kernel_threshold;
-            } else {
-                num_inliers(it)++;
-            }
-
-            chi_stats(it) += chi;
-            H+=ejz.J.transpose() * ejz.J;
-            b+=ejz.J.transpose() * ejz.e;
-
+        ejz = errorAndJacobianManifold(X, firstCloud.col(i).head(3), secondCloud.col(i).head(3));
+        chi += ejz.e.transpose() * ejz.e;
+        if(chi>kernel_threshold) {
+            ejz.e = ejz.e * sqrt(kernel_threshold / chi);
+            chi = kernel_threshold;
         }
-        dx = -H.ldlt().solve(b);
-        X = v2t(dx) * X ;
-        //Vector3d rgb1, rgb2;
-        //rgb1 << 255,0,0;
-        //rgb2 << 0,255,0;
-        //pointCloudVis(firstCloud, secondCloud, X, rgb1, rgb2);
+        H+=ejz.J.transpose() * ejz.J;
+        b+=ejz.J.transpose() * ejz.e;
 
-      
     }
-
+    dx = -H.ldlt().solve(b);
+    X = v2t(dx) * X ;
 
     icpResults results;
-    results.chi = chi_stats;
+    results.chi = chi;
     results.newGuess = X;
 
     return results;
