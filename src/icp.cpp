@@ -1,15 +1,10 @@
 #include "icp.h"
 
 
-icp::icp()
-{
-    std::cout << "icp object created" << std::endl;
-}
+icp::icp() {}
 
 
-icp::~icp(){
-    std::cout << "icp object destructed" << std::endl;
-}
+icp::~icp(){}
 
 
 icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
@@ -77,7 +72,7 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
         chi += ejz.e.transpose() * ejz.e;
     }
 
-    results.totalError = chi;
+    results.chi = chi;
 
     return results; //the relaxed solution for the initial correspondences.
 }
@@ -90,7 +85,7 @@ icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
 
     VectorXd dx(6), b(6);
     MatrixXd H(6,6), X(4,4);
-    double chi(0);
+    double chi(0), error;
     eJzs ejz; //error and jacobian struct
 
     X = initialGuess;
@@ -101,11 +96,11 @@ icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
     for (int i = 0; i < secondCloud.cols(); i++){
 
         ejz = errorAndJacobianManifold(X, firstCloud.col(i).head(3), secondCloud.col(i).head(3));
-        chi += ejz.e.transpose() * ejz.e;
-        if(chi>kernel_threshold) {
-            ejz.e = ejz.e * sqrt(kernel_threshold / chi);
-            chi = kernel_threshold;
-        }
+        error = ejz.e.transpose() * ejz.e;
+        if(error>kernel_threshold) {
+            error = error * sqrt(kernel_threshold / error);
+            chi += error;
+        } else chi+=error;
         H+=ejz.J.transpose() * ejz.J;
         b+=ejz.J.transpose() * ejz.e;
 

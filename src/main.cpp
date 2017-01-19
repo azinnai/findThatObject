@@ -14,16 +14,76 @@
 #include "kdTree.h"
 #include "converters.h"
 
+static void show_usage(std::string name)
+{
+    std::cerr << "Usage: " << name << " <option(s)> SOURCES"
+              << "\tInsert exactly two point cloud sources\n"
+              << "Options:\n"
+              << "\t-h,--help\t\tShow this help message\n"
+              << "\t-v,--voxel\t\tSet voxel grid size to downsample data, default=0.04\n"
+              << "\t-d,--distance\t\tSpecify the max distance between tow points to be associated, default=0.15\n"
+              << "\t-i,--iterations\t\tNumber of least squares iterations, default=200\n"
+              << std::endl;
+}
 
 int main(int argc, char* argv[])
 {
-    //getting the two point cloud, can receive either csv or pcd files.
+    std::string path1("void"), path2("void");
+    double max_distance = 0.15f;
+    double voxelSize = 0.04f;
+    int n_it_max = 200;
+    bool USampling = true;
+    bool VoxelGrid = false;
+    bool normals = false;
+    bool moveCloud = false;
+
+
+    if (argc < 3) {
+        show_usage(argv[0]);
+        return 1;
+    }
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if ((arg == "-h") || (arg == "--help")) {
+            show_usage(argv[0]);
+            return 0;
+        } else if ((arg == "-v") || (arg == "--voxel")) {
+            if (i + 2 < argc) { // Make sure we aren't at the end of argv!
+                std::string value = argv[++i];
+                voxelSize = std::stod(value); // Increment 'i' so we don't get the argument as the next argv[i].
+            } else { // Uh-oh, there was no argument to the destination option.
+                std::cerr << "There are no sources" << std::endl;
+                return 1;
+            }
+
+        } else if ((arg == "-d") || (arg == "--distance")) {
+            if (i + 2 < argc) { // Make sure we aren't at the end of argv!
+                std::string value = argv[++i];
+                max_distance = std::stod(value); // Increment 'i' so we don't get the argument as the next argv[i].
+            } else { // Uh-oh, there was no argument to the destination option.
+                std::cerr << "There are no sources" << std::endl;
+                return 1;
+            }
+        } else if ((arg == "-i") || (arg == "--iterations")) {
+            if (i + 2 < argc) { // Make sure we aren't at the end of argv!
+                std::string value = argv[++i];
+                n_it_max = std::stoi(value); // Increment 'i' so we don't get the argument as the next argv[i].
+            } else { // Uh-oh, there was no argument to the destination option.
+                std::cerr << "There are no sources" << std::endl;
+                return 1;
+            }
+        } else {
+            if (path1 == "void") path1 = argv[i];
+            else path2 = argv[i];
+        }
+    }
+
+    //reading the two point cloud, can receive either csv or pcd files.
     pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    std::string path1 = argv[1];
-    std::string path2 = argv[2];
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+
 
     if (path1.substr(path1.size() - 3) == "txt") {
         fromCsvToPcd(path1, reference_cloud);
@@ -49,95 +109,111 @@ int main(int argc, char* argv[])
         return (-1);
     }
 
-    //downsampling both clouds
-    pcl::VoxelGrid<pcl::PointXYZ> filter;
-    filter.setLeafSize(0.04, 0.04, 0.04);
-    filter.setInputCloud(reference_cloud);
-    filter.filter(*reference_cloud_filtered);
-    filter.setInputCloud(second_cloud);
-    filter.filter(*second_cloud_filtered);
 
+
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+
+    if(VoxelGrid == true) {
+        //downsampling both clouds using voxelGrid
+        pcl::VoxelGrid<pcl::PointXYZ> filter;
+        filter.setLeafSize(voxelSize, voxelSize, voxelSize);
+        filter.setInputCloud(reference_cloud);
+        filter.filter(*reference_cloud_filtered);
+        filter.setInputCloud(second_cloud);
+        filter.filter(*second_cloud_filtered);
+    }
+
+
+
+
+    //prova uskeypoint
+    icp leastSquare;
+    if(USampling == true) {
+        double radiusSearch = 0.07;
+        leastSquare.exctractUSkeyPoints(fromPclToEigenM(reference_cloud), reference_cloud_filtered, radiusSearch);
+        leastSquare.exctractUSkeyPoints(fromPclToEigenM(second_cloud), second_cloud_filtered, radiusSearch);
+    }
+
+    std::cerr << "uspoint_reference : " << reference_cloud_filtered->width <<
+              "\nuspoint_reference : " << second_cloud_filtered->width <<std::endl;
+
+
+
+    //building KDtree
+    double leaf_range = 0.02;
+    VectorXdVector points(reference_cloud_filtered->width);
+    fromPclToKD(reference_cloud_filtered, points);
+    BaseTreeNode* rootTree = buildTree(points, leaf_range);
+
+
+    //converting PointCloudXYZ to 4*N Eigen Matrix needed by leastsquares
+    MatrixXd eigen_reference_cloud_filtered;
+    MatrixXd eigen_second_cloud_filtered;
+    eigen_reference_cloud_filtered = fromPclToEigenM(reference_cloud_filtered);
+    eigen_second_cloud_filtered = fromPclToEigenM(second_cloud_filtered);
+
+    Matrix4d guess, identity;
+
+    //move the cloud
+    if(moveCloud== true) {
+
+        Eigen::Affine3d transform_2 = Eigen::Affine3d::Identity();
+
+        // Define a translation of 2.5 meters on the x axis.
+        transform_2.translation() << 0.2, 0.0, 0.0;
+
+        // The same rotation matrix as before; theta radians arround Z axis
+        transform_2.rotate(Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitZ()));
+
+        // Print the transformation
+        guess = transform_2.matrix();
+        eigen_second_cloud_filtered = guess * eigen_second_cloud_filtered;
+        pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
+    }
+    guess.setIdentity();
+    identity.setIdentity();
 
     //creating the pcl viewer with some properties
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
     viewer->setBackgroundColor (0, 0, 0);
     viewer->initCameraParameters();
     viewer->setCameraPosition(0.0, 0.0, -0.4, 0.0, -1.0, 0.0);
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>
-            red (reference_cloud_filtered, 255, 0, 0);
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ>
-            green (second_cloud_filtered, 0, 255, 0);
-    viewer->addPointCloud(reference_cloud_filtered, red, "reference_cloud");
-    viewer->addPointCloud(second_cloud_filtered, green, "second_cloud");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "reference_cloud");
-    viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "second_cloud");
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> red(reference_cloud_filtered, 255, 0, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(transformed_cloud, 0, 255, 0);
 
-    //building KDtree
-    double leaf_range = 0.02;
-    double max_distance = 0.15;
-
-    VectorXdVector points(reference_cloud_filtered->width);
-    fromPclToKD(reference_cloud_filtered, points);
-
-    BaseTreeNode* rootTree = buildTree(points, leaf_range);
-
-    matrix_container correspondences;
-    MatrixXd eigen_reference_cloud_filtered;
-    MatrixXd eigen_second_cloud_filtered;
-    eigen_reference_cloud_filtered = fromPclToEigenM(reference_cloud_filtered);
-    eigen_second_cloud_filtered = fromPclToEigenM(second_cloud_filtered);
-
-    icp leastSquare;
-    icp::icpResults leastSquaresResults;
-
-    int n_it_max = 200;
+    //variables for the loop
     int n_it = 0;
-    double kernel_threshold(1.0);
-    Matrix4d guess, identity;
-
-    Eigen::Affine3d transform_2 = Eigen::Affine3d::Identity();
-
-    // Define a translation of 2.5 meters on the x axis.
-    transform_2.translation() << 0.2, 0.0, 0.0;
-
-    // The same rotation matrix as before; theta radians arround Z axis
-    transform_2.rotate (Eigen::AngleAxisd (0.1, Eigen::Vector3d::UnitZ()));
-
-    // Print the transformation
-    guess = transform_2.matrix();
-    //eigen_second_cloud_filtered = guess * eigen_second_cloud_filtered;
-
-    guess.setIdentity();
-    identity.setIdentity();
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-    double best_chi(DBL_MAX);
+    double kernel_threshold(0.06);
+    matrix_container correspondences;
+    //icp leastSquare; moved above for testing
+    icp::icpResults leastSquaresResults;
+    std::cerr << "point_reference : " << reference_cloud_filtered->width <<
+              "\npoint_second : " << second_cloud_filtered->width <<std::endl;
 
     while (!viewer->wasStopped() && n_it < n_it_max)
     {
         correspondences = findAllNeighbors(eigen_second_cloud_filtered, max_distance, rootTree);
 
-        //correspondences.correspondences2 = guess.inverse() * correspondences.correspondences2;
         leastSquaresResults = leastSquare.allignClouds(correspondences.correspondences1,
                                                        correspondences.correspondences2,
                                                        identity, kernel_threshold);
-        std::cerr << correspondences.correspondences1.cols() << "  " << correspondences.correspondences2.cols() <<
-                  "chi:  " << leastSquaresResults.chi << std::endl;
-        //if (leastSquaresResults.chi<best_chi) {
-            eigen_second_cloud_filtered = leastSquaresResults.newGuess * eigen_second_cloud_filtered;
-            guess = leastSquaresResults.newGuess * guess;
-            pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
-            best_chi = leastSquaresResults.chi;
-        //}
+        if(n_it%20==0) {
+            std::cerr << "inliers: %" << float(correspondences.correspondences1.cols())/reference_cloud_filtered->width <<
+                      " error:  " << float(leastSquaresResults.chi) << std::endl;
+        }
+        eigen_second_cloud_filtered = leastSquaresResults.newGuess * eigen_second_cloud_filtered;
+        guess = leastSquaresResults.newGuess * guess;
+        pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
 
         viewer->removeAllPointClouds();
-
         viewer->addPointCloud(reference_cloud_filtered, red, "reference_cloud");
         viewer->addPointCloud(transformed_cloud, green, "second_cloud");
-        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.5, "reference_cloud");
-        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2.5, "second_cloud");
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5, "reference_cloud");
+        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5, "second_cloud");
 
-        viewer->spinOnce (100);
+        viewer->spinOnce (1000);
         boost::this_thread::sleep (boost::posix_time::microseconds (100000));
         ++n_it;
     }

@@ -41,7 +41,6 @@ class icp {
             MatrixXd newGuess;
             double chi;
             VectorXd sigma;
-            double totalError;
         };
 
         struct ransacResults {

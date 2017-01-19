@@ -28,7 +28,7 @@ icp::ransacResults icp::ransac(const Ref<const MatrixXd> cloud1, const Ref<const
     float radiusSearch = 0.02;
     pcl::PointCloud<pcl::PointXYZ>::Ptr first_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::PointCloud<pcl::PointXYZ>::Ptr second_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
-    exctractUSkeyPoints(cloud1,first_keypoints, radiusSearch);
+    exctractUSkeyPoints(cloud1, first_keypoints, radiusSearch);
     exctractUSkeyPoints(cloud2, second_keypoints, radiusSearch);
 
     std::cout << first_keypoints->size() << std::endl;
@@ -89,7 +89,7 @@ icp::ransacResults icp::ransac(const Ref<const MatrixXd> cloud1, const Ref<const
                 //                     resultsIcp.newGuess, leastSquaresIteration,
                 //                      kernel_threshold);
                 resultsIcp = relaxAllignClouds(in.inliers1, in.inliers2);
-                alignmentError = resultsIcp.totalError + (1.0 - ((double)in.inliers1.cols())/cloud1.cols());
+                alignmentError = resultsIcp.chi + (1.0 - ((double)in.inliers1.cols())/cloud1.cols());
                 if(alignmentError<chi){
                     std::cout << "ransac iteration :    " << it << std::endl;
                     std::cout << "number of inliers: "<< correspondences.size() << std::endl;

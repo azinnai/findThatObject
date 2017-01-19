@@ -14,7 +14,7 @@ void fromPclToKD(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud,
     }
 }
 MatrixXd fromPclToEigenM(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud){
-    MatrixXd eigen_cloud(4,pcl_cloud->width);
+    MatrixXd eigen_cloud(4, pcl_cloud->width);
 
     for(int i=0; i < pcl_cloud->width; ++i){
         int dimension = 4;
