@@ -13,6 +13,19 @@ void fromPclToKD(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud,
         points[i] = point;
     }
 }
+void fromEigenToKD(const MatrixXd & cloud,
+                 VectorXdVector& points){
+    for(int i=0; i < cloud.cols(); ++i){
+        int dimension = 3;
+        VectorXd point(dimension);
+
+        point(0) = cloud.col(i)(0);
+        point(1) = cloud.col(i)(1);
+        point(2) = cloud.col(i)(2);
+
+        points[i] = point;
+    }
+}
 MatrixXd fromPclToEigenM(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud){
     MatrixXd eigen_cloud(4, pcl_cloud->width);
 

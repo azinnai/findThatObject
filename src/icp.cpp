@@ -1,13 +1,6 @@
 #include "icp.h"
 
-
-icp::icp() {}
-
-
-icp::~icp(){}
-
-
-icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
+icpResults relaxAllignClouds(const Ref<const MatrixXd>& set1,
                                         const Ref<const MatrixXd>& set2){
 
 
@@ -78,7 +71,7 @@ icp::icpResults icp::relaxAllignClouds(const Ref<const MatrixXd>& set1,
 }
 
 
-icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
+icpResults allignClouds(const Ref<const MatrixXd>& firstCloud,
                                         const Ref<const MatrixXd>& secondCloud,
                                         const Ref<const Matrix4d>& initialGuess,
                                         double kernel_threshold){
@@ -115,7 +108,7 @@ icp::icpResults icp::allignClouds(const Ref<const MatrixXd>& firstCloud,
     return results;
 }
 
-icp::eJzs icp::errorAndJacobianManifold(const Ref<const Matrix4d>& x,
+eJzs errorAndJacobianManifold(const Ref<const Matrix4d>& x,
                                 const Vector3d& z,
                                 const Vector3d& p)
 {
@@ -144,4 +137,94 @@ icp::eJzs icp::errorAndJacobianManifold(const Ref<const Matrix4d>& x,
 
     return ej;
 
+}
+
+Matrix4d coarseAllignment(const MatrixXd & referenceCloud, const MatrixXd & secondCloud, int n_it, BaseTreeNode* kdTree, double maxDistance){
+
+    Vector3d comReferenceMean, comSecondMean, comReferenceSTD, comSecondSTD;
+    Matrix4d bestGuess, guess, initialGuess, identity;
+    MatrixXd tmpCloud, initialCloud;
+    double best_chi(DBL_MAX);
+    int max_correspondences(0);
+    identity.setIdentity();
+    bestGuess.setIdentity();
+
+    matrix_container correspondences;
+    icpResults results;
+
+    getCenterOfMass(referenceCloud, comReferenceMean, comReferenceSTD);
+    getCenterOfMass(secondCloud, comSecondMean, comSecondSTD);
+    //std::cerr << "mean " << comReferenceMean.transpose() << "\nstd  " << comReferenceSTD.transpose() << std::endl;
+    initialGuess.setIdentity();
+    initialGuess.col(3).head(3) = comReferenceMean - comSecondMean;
+    initialCloud = initialGuess * secondCloud;
+    std::cerr << "initial guess \n " << initialGuess << std::endl;
+
+    /*building KDtree
+    double leaf_range = 0.02;
+    VectorXdVector points(referenceCloud.cols());
+    fromEigenToKD(referenceCloud, points);
+    BaseTreeNode* rootTree = buildTree(points, leaf_range);
+    */
+
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::normal_distribution<double> distribution_x(0.0, 3*comReferenceSTD(0));
+    std::normal_distribution<double> distribution_y(0.0, 4*comReferenceSTD(1));
+    std::normal_distribution<double> distribution_z(0.0, 3*comReferenceSTD(2));
+
+    correspondences = findAllNeighbors(initialCloud, maxDistance, kdTree);
+    results = allignClouds(correspondences.correspondences1, correspondences.correspondences2, identity, 0.1);
+
+
+    for(int it = 0; it < n_it; ++it){
+        double rndx, rndy, rndz;
+        rndx = distribution_x(mt);
+        rndy = distribution_y(mt);
+        rndz = distribution_z(mt);
+
+        guess << 1,0,0,rndx,
+                0,1,0,rndy,
+                0,0,1,rndz,
+                0,0,0,1;
+
+        tmpCloud = guess * initialCloud;
+        correspondences = findAllNeighbors(tmpCloud, maxDistance, kdTree);
+        //results = allignClouds(correspondences.correspondences1, correspondences.correspondences2, identity, 0.1);
+        //if(results.chi < best_chi){
+        if(correspondences.correspondences2.cols() > max_correspondences ){
+            bestGuess = guess;
+            //best_chi = results.chi;
+            max_correspondences = correspondences.correspondences2.cols();
+            std::cerr << "Max correnspondeces" << correspondences.correspondences2.cols() <<
+                      std::endl;
+        }
+    }
+
+    bestGuess = bestGuess * initialGuess;
+
+    return bestGuess;
+}
+
+void getCenterOfMass(const Ref<const MatrixXd>& cloud, Vector3d& com, Vector3d& std){
+
+    com.setZero();
+    std.setZero();
+
+    for(int i = 0; i < cloud.cols(); ++i){
+        com(0) += cloud.col(i)(0);
+        com(1) += cloud.col(i)(1);
+        com(2) += cloud.col(i)(2);
+    }
+    com = com/cloud.cols();
+
+    for(int j=0; j < cloud.cols(); ++j){
+        std(0) += (cloud.col(j)(0) - com(0))*(cloud.col(j)(0) - com(0));
+        std(1) += (cloud.col(j)(1) - com(1))*(cloud.col(j)(1) - com(1));
+        std(2) += (cloud.col(j)(2) - com(2))*(cloud.col(j)(2) - com(2));
+    }
+
+    std = std/cloud.cols();
+
+    std::cerr << "mean " << com.transpose() << "\nstd  " << std.transpose() << std::endl;
 }

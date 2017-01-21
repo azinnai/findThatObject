@@ -1,5 +1,5 @@
 #include "icp.h"
-icp::ransacResults icp::ransac(const Ref<const MatrixXd> cloud1, const Ref<const MatrixXd> cloud2,
+ransacResults ransac(const Ref<const MatrixXd> cloud1, const Ref<const MatrixXd> cloud2,
                     int n_it, double sigmaThreshold, int minNumberOfCorrespondences){
 
     Matrix4d bestTransformation;
@@ -102,7 +102,7 @@ icp::ransacResults icp::ransac(const Ref<const MatrixXd> cloud1, const Ref<const
                     rgb1 << 255,0,0;
                     rgb2 << 0,255,0;
                     //pointCloudVis(cloud1, cloud2, resultsIcp.newGuess, rgb1, rgb2);
-                                    
+
                 }
             }
         }
@@ -117,7 +117,7 @@ icp::ransacResults icp::ransac(const Ref<const MatrixXd> cloud1, const Ref<const
 
 
 
-icp::inliers icp::resizeClouds(const Ref<const MatrixXd>& cloud1, const Ref<const MatrixXd>& cloud2, 
+inliers resizeClouds(const Ref<const MatrixXd>& cloud1, const Ref<const MatrixXd>& cloud2,
                         std::map<int, std::pair<int, double>>& correspondences){
     MatrixXd newCloud1(3,correspondences.size()), newCloud2(3,correspondences.size());
     inliers in;
@@ -135,7 +135,7 @@ icp::inliers icp::resizeClouds(const Ref<const MatrixXd>& cloud1, const Ref<cons
 }
 
 
-std::map<int,std::pair<int, double>> icp::findCorrespondences(const Ref<const MatrixXd>& cloud, 
+std::map<int,std::pair<int, double>> findCorrespondences(const Ref<const MatrixXd>& cloud,
                                     double squaredDistanceThreshold, 
                                     pcl::KdTreeFLANN<pcl::PointXYZ>& kdtree){
     
@@ -178,7 +178,7 @@ std::map<int,std::pair<int, double>> icp::findCorrespondences(const Ref<const Ma
 }
 
 
-MatrixXd icp::mapToMatrix(const std::map<int, Vector3d>& map){
+MatrixXd mapToMatrix(const std::map<int, Vector3d>& map){
     MatrixXd samples(3, map.size());
     int i=0;
     for ( auto const& it: map){
@@ -188,7 +188,7 @@ MatrixXd icp::mapToMatrix(const std::map<int, Vector3d>& map){
     return samples;
 }
 
-pcl::KdTreeFLANN<pcl::PointXYZ> icp::kdTreeBuild(const Ref<const MatrixXd>& cloudEigen){
+pcl::KdTreeFLANN<pcl::PointXYZ> kdTreeBuild(const Ref<const MatrixXd>& cloudEigen){
     pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -209,7 +209,7 @@ pcl::KdTreeFLANN<pcl::PointXYZ> icp::kdTreeBuild(const Ref<const MatrixXd>& clou
     return kdtree;
 }
 
-void icp::exctractUSkeyPoints(const Ref<const MatrixXd>& cloud,   pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints,
+void exctractUSkeyPoints(const Ref<const MatrixXd>& cloud,   pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints,
                                         float radiusSearch){
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud (new pcl::PointCloud<pcl::PointXYZ>);
@@ -229,7 +229,7 @@ void icp::exctractUSkeyPoints(const Ref<const MatrixXd>& cloud,   pcl::PointClou
     uniform_sampling.filter(*model_keypoints);
 
 }
-pcl::RangeImage icp::exctractNARFkeyPoints(const Ref<const MatrixXd>& cloud) {
+pcl::RangeImage exctractNARFkeyPoints(const Ref<const MatrixXd>& cloud) {
     // --------------------
     // -----Parameters-----
     // --------------------
