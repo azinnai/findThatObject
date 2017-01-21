@@ -10,9 +10,10 @@
 #include <pcl/console/parse.h>
 #include <pcl/filters/voxel_grid.h>
 
-#include "icp.h"
-#include "kdTree.h"
 #include "converters.h"
+#include "kdTree.h"
+#include "icp.h"
+
 
 static void show_usage(std::string name)
 {
@@ -29,11 +30,11 @@ static void show_usage(std::string name)
 int main(int argc, char* argv[])
 {
     std::string path1("void"), path2("void");
-    double max_distance = 0.15f;
-    double voxelSize = 0.04f;
-    int n_it_max = 200;
-    bool USampling = true;
-    bool VoxelGrid = false;
+    double max_distance = 0.02f;
+    double voxelSize = 0.03f;
+    int n_it_max = 100;
+    bool USampling = false;
+    bool VoxelGrid = true;
     bool normals = false;
     bool moveCloud = false;
 
@@ -129,16 +130,11 @@ int main(int argc, char* argv[])
 
 
     //prova uskeypoint
-    icp leastSquare;
     if(USampling == true) {
         double radiusSearch = 0.07;
-        leastSquare.exctractUSkeyPoints(fromPclToEigenM(reference_cloud), reference_cloud_filtered, radiusSearch);
-        leastSquare.exctractUSkeyPoints(fromPclToEigenM(second_cloud), second_cloud_filtered, radiusSearch);
+        exctractUSkeyPoints(fromPclToEigenM(reference_cloud), reference_cloud_filtered, radiusSearch);
+        exctractUSkeyPoints(fromPclToEigenM(second_cloud), second_cloud_filtered, radiusSearch);
     }
-
-    std::cerr << "uspoint_reference : " << reference_cloud_filtered->width <<
-              "\nuspoint_reference : " << second_cloud_filtered->width <<std::endl;
-
 
 
     //building KDtree
@@ -153,6 +149,8 @@ int main(int argc, char* argv[])
     MatrixXd eigen_second_cloud_filtered;
     eigen_reference_cloud_filtered = fromPclToEigenM(reference_cloud_filtered);
     eigen_second_cloud_filtered = fromPclToEigenM(second_cloud_filtered);
+
+
 
     Matrix4d guess, identity;
 
@@ -185,28 +183,32 @@ int main(int argc, char* argv[])
 
     //variables for the loop
     int n_it = 0;
-    double kernel_threshold(0.06);
+    double kernel_threshold(0.1);
     matrix_container correspondences;
     //icp leastSquare; moved above for testing
-    icp::icpResults leastSquaresResults;
+    icpResults leastSquaresResults;
     std::cerr << "point_reference : " << reference_cloud_filtered->width <<
               "\npoint_second : " << second_cloud_filtered->width <<std::endl;
+
+    //com try
+
+    guess = coarseAllignment(eigen_reference_cloud_filtered, eigen_second_cloud_filtered, 100000, rootTree, max_distance);
+    eigen_second_cloud_filtered = guess * eigen_second_cloud_filtered;
 
     while (!viewer->wasStopped() && n_it < n_it_max)
     {
         correspondences = findAllNeighbors(eigen_second_cloud_filtered, max_distance, rootTree);
 
-        leastSquaresResults = leastSquare.allignClouds(correspondences.correspondences1,
+        leastSquaresResults = allignClouds(correspondences.correspondences1,
                                                        correspondences.correspondences2,
                                                        identity, kernel_threshold);
-        if(n_it%20==0) {
+        if(n_it%100==0) {
             std::cerr << "inliers: %" << float(correspondences.correspondences1.cols())/reference_cloud_filtered->width <<
                       " error:  " << float(leastSquaresResults.chi) << std::endl;
         }
         eigen_second_cloud_filtered = leastSquaresResults.newGuess * eigen_second_cloud_filtered;
         guess = leastSquaresResults.newGuess * guess;
         pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
-
         viewer->removeAllPointClouds();
         viewer->addPointCloud(reference_cloud_filtered, red, "reference_cloud");
         viewer->addPointCloud(transformed_cloud, green, "second_cloud");
