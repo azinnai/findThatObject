@@ -2,7 +2,7 @@
 
 void fromPclToKD(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud,
                  VectorXdVector& points){
-    for(int i=0; i < pcl_cloud->width; ++i){
+    for(int i=0; i < pcl_cloud->width * pcl_cloud->height; ++i){
         int dimension = 3;
         VectorXd point(dimension);
 
@@ -13,19 +13,7 @@ void fromPclToKD(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud,
         points[i] = point;
     }
 }
-void fromEigenToKD(const MatrixXd & cloud,
-                 VectorXdVector& points){
-    for(int i=0; i < cloud.cols(); ++i){
-        int dimension = 3;
-        VectorXd point(dimension);
 
-        point(0) = cloud.col(i)(0);
-        point(1) = cloud.col(i)(1);
-        point(2) = cloud.col(i)(2);
-
-        points[i] = point;
-    }
-}
 MatrixXd fromPclToEigenM(pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cloud){
     MatrixXd eigen_cloud(4, pcl_cloud->width);
 
@@ -69,7 +57,7 @@ M load_csv (const std::string & path) {
         ++cols;
     }
 
-    md = MatrixXd::Map(&values[0], 3, cols); // THE ORDER OF EIGEN MATRIX IS COLUMN MAJOR!
+    md = MatrixXd::Map(&values[0], 3, cols);
 
     return md;
 }
@@ -91,29 +79,3 @@ void fromCsvToPcd(std::string path, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_pt
 
 }
 
-matrix_container findAllNeighbors(const Ref<const MatrixXd>& queryM, double max_distance, BaseTreeNode* rootTree){
-
-    MatrixXd correspondences1(3,1), correspondences2(3,1);
-
-    for (int i=0; i < queryM.cols(); ++i){
-        VectorXd answer(3), query(queryM.col(i).head(3));
-
-        if (rootTree->findNeighbor(answer, query, max_distance) > 0){
-
-            correspondences1.conservativeResize(correspondences1.rows(), correspondences1.cols() +1);
-            correspondences2.conservativeResize(correspondences2.rows(), correspondences2.cols() +1);
-
-            correspondences1.rightCols(1) = answer;
-            correspondences2.rightCols(1) = query;
-        }
-    }
-
-    correspondences1.conservativeResize(correspondences1.rows()+1, correspondences1.cols());
-    correspondences2.conservativeResize(correspondences2.rows()+1, correspondences2.cols());
-    correspondences1.bottomRows(1).setOnes();
-    correspondences2.bottomRows(1).setOnes();
-    matrix_container correspondences;
-    correspondences.correspondences1 = correspondences1;
-    correspondences.correspondences2 = correspondences2;
-    return correspondences;
-}

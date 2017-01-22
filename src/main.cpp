@@ -10,32 +10,36 @@
 #include <pcl/console/parse.h>
 #include <pcl/filters/voxel_grid.h>
 
-#include "converters.h"
 #include "kdTree.h"
+#include "converters.h"
 #include "icp.h"
 
 
 static void show_usage(std::string name)
 {
     std::cerr << "Usage: " << name << " <option(s)> SOURCES"
-              << "\tInsert exactly two point cloud sources\n"
+              << "\nInsert exactly two point cloud sources as last arguments\n"
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
-              << "\t-v,--voxel\t\tSet voxel grid size to downsample data, default=0.04\n"
-              << "\t-d,--distance\t\tSpecify the max distance between tow points to be associated, default=0.15\n"
+              << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.03 is a good choice\n"
+              << "\t-d,--distance\t\tSpecify the max distance between two points to be associated, default=0.02\n"
               << "\t-i,--iterations\t\tNumber of least squares iterations, default=200\n"
+              << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=50000\n"
+              << "\t-r,--radius\t\tEnable Uniform Sampling, set the radius and disable Voxel Grid, normally 0.03 is a good choice\n"
               << std::endl;
 }
+
 
 int main(int argc, char* argv[])
 {
     std::string path1("void"), path2("void");
     double max_distance = 0.02f;
     double voxelSize = 0.03f;
-    int n_it_max = 100;
+    int n_it_max = 200;
+    int coarse_it = 50000;
+    float radiusSearchUS = 0.03f;
     bool USampling = false;
-    bool VoxelGrid = true;
-    bool normals = false;
+    bool VoxelGrid = false;
     bool moveCloud = false;
 
 
@@ -53,11 +57,11 @@ int main(int argc, char* argv[])
             if (i + 2 < argc) { // Make sure we aren't at the end of argv!
                 std::string value = argv[++i];
                 voxelSize = std::stod(value); // Increment 'i' so we don't get the argument as the next argv[i].
+                VoxelGrid = true;
             } else { // Uh-oh, there was no argument to the destination option.
                 std::cerr << "There are no sources" << std::endl;
                 return 1;
             }
-
         } else if ((arg == "-d") || (arg == "--distance")) {
             if (i + 2 < argc) { // Make sure we aren't at the end of argv!
                 std::string value = argv[++i];
@@ -74,6 +78,23 @@ int main(int argc, char* argv[])
                 std::cerr << "There are no sources" << std::endl;
                 return 1;
             }
+        } else if ((arg == "-c") || (arg == "--coarse")) {
+            if (i + 2 < argc) { // Make sure we aren't at the end of argv!
+                std::string value = argv[++i];
+                coarse_it = std::stoi(value); // Increment 'i' so we don't get the argument as the next argv[i].
+            } else { // Uh-oh, there was no argument to the destination option.
+                std::cerr << "There are no sources" << std::endl;
+                return 1;
+            }
+        } else if ((arg == "-r") || (arg == "--radius")) {
+            if (i + 2 < argc) { // Make sure we aren't at the end of argv!
+                std::string value = argv[++i];
+                radiusSearchUS = std::stof(value); // Increment 'i' so we don't get the argument as the next argv[i].
+                USampling = true;
+            } else { // Uh-oh, there was no argument to the destination option.
+                std::cerr << "There are no sources" << std::endl;
+                return 1;
+            }
         } else {
             if (path1 == "void") path1 = argv[i];
             else path2 = argv[i];
@@ -81,8 +102,8 @@ int main(int argc, char* argv[])
     }
 
     //reading the two point cloud, can receive either csv or pcd files.
-    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
     pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
 
 
@@ -97,7 +118,6 @@ int main(int argc, char* argv[])
         std::cerr << "invalid first point cloud file\n";
         return(-1);
     }
-
     if (path2.substr(path2.size() - 3) == "txt") {
         fromCsvToPcd(path2, second_cloud);
     }  else if (path2.substr(path2.size() - 3) == "pcd") {
@@ -110,13 +130,14 @@ int main(int argc, char* argv[])
         return (-1);
     }
 
+    std::cout << "Reference cloud number of points before filtering:  " << reference_cloud->width * reference_cloud->height <<
+              "\nCloud to allign number of points before filtering:  " << second_cloud->width * second_cloud->height << std::endl;
 
 
+    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ> ());
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr reference_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr second_cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-
-    if(VoxelGrid == true) {
+    if(VoxelGrid) {
         //downsampling both clouds using voxelGrid
         pcl::VoxelGrid<pcl::PointXYZ> filter;
         filter.setLeafSize(voxelSize, voxelSize, voxelSize);
@@ -126,36 +147,32 @@ int main(int argc, char* argv[])
         filter.filter(*second_cloud_filtered);
     }
 
-
-
-
     //prova uskeypoint
-    if(USampling == true) {
-        double radiusSearch = 0.07;
-        exctractUSkeyPoints(fromPclToEigenM(reference_cloud), reference_cloud_filtered, radiusSearch);
-        exctractUSkeyPoints(fromPclToEigenM(second_cloud), second_cloud_filtered, radiusSearch);
+    if(USampling) {
+        pcl::UniformSampling<pcl::PointXYZ> uniform_sampling;
+        exctractUSkeyPoints(reference_cloud, reference_cloud_filtered, radiusSearchUS);
+        exctractUSkeyPoints(second_cloud, second_cloud_filtered, radiusSearchUS);
     }
 
 
     //building KDtree
     double leaf_range = 0.02;
-    VectorXdVector points(reference_cloud_filtered->width);
+    VectorXdVector points(reference_cloud_filtered->width * reference_cloud_filtered->height);
     fromPclToKD(reference_cloud_filtered, points);
     BaseTreeNode* rootTree = buildTree(points, leaf_range);
 
 
-    //converting PointCloudXYZ to 4*N Eigen Matrix needed by leastsquares
+    //converting PointCloudXYZ to 4*N Eigen Matrix needed by ICP
     MatrixXd eigen_reference_cloud_filtered;
     MatrixXd eigen_second_cloud_filtered;
     eigen_reference_cloud_filtered = fromPclToEigenM(reference_cloud_filtered);
     eigen_second_cloud_filtered = fromPclToEigenM(second_cloud_filtered);
 
 
-
     Matrix4d guess, identity;
 
     //move the cloud
-    if(moveCloud== true) {
+    if(moveCloud) {
 
         Eigen::Affine3d transform_2 = Eigen::Affine3d::Identity();
 
@@ -163,13 +180,14 @@ int main(int argc, char* argv[])
         transform_2.translation() << 0.2, 0.0, 0.0;
 
         // The same rotation matrix as before; theta radians arround Z axis
-        transform_2.rotate(Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitZ()));
+        transform_2.rotate(Eigen::AngleAxisd(-0.10*M_PI, Eigen::Vector3d::UnitZ()));
 
         // Print the transformation
         guess = transform_2.matrix();
         eigen_second_cloud_filtered = guess * eigen_second_cloud_filtered;
         pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
     }
+
     guess.setIdentity();
     identity.setIdentity();
 
@@ -185,16 +203,21 @@ int main(int argc, char* argv[])
     int n_it = 0;
     double kernel_threshold(0.1);
     matrix_container correspondences;
-    //icp leastSquare; moved above for testing
     icpResults leastSquaresResults;
-    std::cerr << "point_reference : " << reference_cloud_filtered->width <<
-              "\npoint_second : " << second_cloud_filtered->width <<std::endl;
+    std::cout << "\nReference cloud number of points after filtering:  " << eigen_reference_cloud_filtered.cols() <<
+              "\nCloud to allign number of points after filtering:  " << eigen_second_cloud_filtered.cols() <<std::endl;
 
-    //com try
-
-    guess = coarseAllignment(eigen_reference_cloud_filtered, eigen_second_cloud_filtered, 100000, rootTree, max_distance);
+    std::cout << "\n###### Coarse allignment ######\n" << std::endl;
+    //performing coarse registration
+    guess = coarseAllignment(eigen_reference_cloud_filtered, eigen_second_cloud_filtered, coarse_it, rootTree, max_distance);
     eigen_second_cloud_filtered = guess * eigen_second_cloud_filtered;
 
+    std::cout << "\n###### Coarse registration matrix #######\n\n" << guess <<
+              "\n\n###### ICP ######\n" << std::endl;
+
+    //ICP loop with viewer
+
+    //try to move a little if ICP stuck in a local minima
     while (!viewer->wasStopped() && n_it < n_it_max)
     {
         correspondences = findAllNeighbors(eigen_second_cloud_filtered, max_distance, rootTree);
@@ -202,23 +225,34 @@ int main(int argc, char* argv[])
         leastSquaresResults = allignClouds(correspondences.correspondences1,
                                                        correspondences.correspondences2,
                                                        identity, kernel_threshold);
-        if(n_it%100==0) {
-            std::cerr << "inliers: %" << float(correspondences.correspondences1.cols())/reference_cloud_filtered->width <<
+
+
+
+        if(n_it%5==0) {
+            std::cout << "inliers: " << float(correspondences.correspondences2.cols())/second_cloud_filtered->width << " %  "
                       " error:  " << float(leastSquaresResults.chi) << std::endl;
         }
         eigen_second_cloud_filtered = leastSquaresResults.newGuess * eigen_second_cloud_filtered;
         guess = leastSquaresResults.newGuess * guess;
-        pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
-        viewer->removeAllPointClouds();
-        viewer->addPointCloud(reference_cloud_filtered, red, "reference_cloud");
-        viewer->addPointCloud(transformed_cloud, green, "second_cloud");
-        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5, "reference_cloud");
-        viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5, "second_cloud");
 
-        viewer->spinOnce (1000);
-        boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+        if(n_it%5 == 0) {
+            pcl::transformPointCloud(*second_cloud_filtered, *transformed_cloud, guess);
+            viewer->removeAllPointClouds();
+            viewer->addPointCloud(reference_cloud_filtered, red, "reference_cloud");
+            viewer->addPointCloud(transformed_cloud, green, "second_cloud");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5,
+                                                     "reference_cloud");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3.5,
+                                                     "second_cloud");
+
+            viewer->spinOnce(1000);
+            boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+        }
+
         ++n_it;
     }
+
+    std::cout << "\n######Best registration matrix######\n\n" << guess << std::endl;
 
     return 0;
 }

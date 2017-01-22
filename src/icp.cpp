@@ -3,12 +3,10 @@
 icpResults relaxAllignClouds(const Ref<const MatrixXd>& set1,
                                         const Ref<const MatrixXd>& set2){
 
-
     VectorXd dx(12), b(12), x(12), e(3);
     MatrixXd H(12,12), X(4,4), Hi(3,12), A(3,3), R(3,3), M(3,9);
     icpResults results;
     double chi=0;
-
 
     X.setIdentity();
 
@@ -16,7 +14,6 @@ icpResults relaxAllignClouds(const Ref<const MatrixXd>& set1,
          0,1,0,
          0,0,1,
          0,0,0;
-
 
     H.setZero();
     b.setZero();
@@ -28,21 +25,17 @@ icpResults relaxAllignClouds(const Ref<const MatrixXd>& set1,
         M.block(1,3,1,3) = set2.col(i).transpose();
         M.block(2,6,1,3) = set2.col(i).transpose();
 
-
         Hi.leftCols(9) = M;
         Hi.rightCols(3).setIdentity();
 
         e = M * x.segment(0,9) + x.segment(9,3) - set1.col(i);
-        
 
         H+=Hi.transpose()*Hi;
         b+=Hi.transpose()*e;
-
     }
 
     dx = -H.colPivHouseholderQr().solve(b);
     x += dx;
-
 
     A.row(0) = x.segment(0,3).transpose();
     A.row(1) = x.segment(3,3).transpose();
@@ -150,32 +143,20 @@ Matrix4d coarseAllignment(const MatrixXd & referenceCloud, const MatrixXd & seco
     bestGuess.setIdentity();
 
     matrix_container correspondences;
-    icpResults results;
 
     getCenterOfMass(referenceCloud, comReferenceMean, comReferenceSTD);
     getCenterOfMass(secondCloud, comSecondMean, comSecondSTD);
-    //std::cerr << "mean " << comReferenceMean.transpose() << "\nstd  " << comReferenceSTD.transpose() << std::endl;
+
     initialGuess.setIdentity();
     initialGuess.col(3).head(3) = comReferenceMean - comSecondMean;
-    initialCloud = initialGuess * secondCloud;
-    std::cerr << "initial guess \n " << initialGuess << std::endl;
 
-    /*building KDtree
-    double leaf_range = 0.02;
-    VectorXdVector points(referenceCloud.cols());
-    fromEigenToKD(referenceCloud, points);
-    BaseTreeNode* rootTree = buildTree(points, leaf_range);
-    */
+    initialCloud = initialGuess * secondCloud;
 
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::normal_distribution<double> distribution_x(0.0, 3*comReferenceSTD(0));
-    std::normal_distribution<double> distribution_y(0.0, 4*comReferenceSTD(1));
-    std::normal_distribution<double> distribution_z(0.0, 3*comReferenceSTD(2));
-
-    correspondences = findAllNeighbors(initialCloud, maxDistance, kdTree);
-    results = allignClouds(correspondences.correspondences1, correspondences.correspondences2, identity, 0.1);
-
+    std::normal_distribution<double> distribution_x(0.0, 6*comReferenceSTD(0));
+    std::normal_distribution<double> distribution_y(0.0, 6*comReferenceSTD(1));
+    std::normal_distribution<double> distribution_z(0.0, 6*comReferenceSTD(2));
 
     for(int it = 0; it < n_it; ++it){
         double rndx, rndy, rndz;
@@ -190,19 +171,16 @@ Matrix4d coarseAllignment(const MatrixXd & referenceCloud, const MatrixXd & seco
 
         tmpCloud = guess * initialCloud;
         correspondences = findAllNeighbors(tmpCloud, maxDistance, kdTree);
-        //results = allignClouds(correspondences.correspondences1, correspondences.correspondences2, identity, 0.1);
-        //if(results.chi < best_chi){
+
         if(correspondences.correspondences2.cols() > max_correspondences ){
             bestGuess = guess;
             //best_chi = results.chi;
-            max_correspondences = correspondences.correspondences2.cols();
-            std::cerr << "Max correnspondeces" << correspondences.correspondences2.cols() <<
-                      std::endl;
+            max_correspondences = (int)correspondences.correspondences2.cols();
+            std::cout << "Max correnspondeces found: " <<
+                      correspondences.correspondences2.cols() << std::endl;
         }
     }
-
     bestGuess = bestGuess * initialGuess;
-
     return bestGuess;
 }
 
@@ -225,6 +203,42 @@ void getCenterOfMass(const Ref<const MatrixXd>& cloud, Vector3d& com, Vector3d& 
     }
 
     std = std/cloud.cols();
+}
 
-    std::cerr << "mean " << com.transpose() << "\nstd  " << std.transpose() << std::endl;
+
+matrix_container findAllNeighbors(const Ref<const MatrixXd>& queryM, double max_distance, BaseTreeNode* rootTree){
+
+    MatrixXd correspondences1(3,1), correspondences2(3,1);
+
+    for (int i=0; i < queryM.cols(); ++i){
+        VectorXd answer(3), query(queryM.col(i).head(3));
+
+        if (rootTree->findNeighbor(answer, query, max_distance) > 0){
+
+            correspondences1.conservativeResize(correspondences1.rows(), correspondences1.cols() +1);
+            correspondences2.conservativeResize(correspondences2.rows(), correspondences2.cols() +1);
+
+            correspondences1.rightCols(1) = answer;
+            correspondences2.rightCols(1) = query;
+        }
+    }
+
+    correspondences1.conservativeResize(correspondences1.rows()+1, correspondences1.cols());
+    correspondences2.conservativeResize(correspondences2.rows()+1, correspondences2.cols());
+    correspondences1.bottomRows(1).setOnes();
+    correspondences2.bottomRows(1).setOnes();
+    matrix_container correspondences;
+    correspondences.correspondences1 = correspondences1;
+    correspondences.correspondences2 = correspondences2;
+    return correspondences;
+}
+
+void exctractUSkeyPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,   pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints,
+                         float radiusSearch){
+
+    pcl::UniformSampling<pcl::PointXYZ> uniform_sampling;
+    uniform_sampling.setInputCloud(cloud);
+    uniform_sampling.setRadiusSearch(radiusSearch);
+    uniform_sampling.filter(*model_keypoints);
+
 }
