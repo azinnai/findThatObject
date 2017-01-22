@@ -22,7 +22,7 @@ Simple object recognition in point clouds. It performs a coarse recognition movi
 
 **Typical usage:**
 
-./findThatObject <options> <path_to_scene_file> <path_to_object_file> 
+./findThatObject '<options>' '<path_to_scene_file>' '<path_to_object_file>' 
 
 
 **Example:**
