@@ -8,8 +8,13 @@ Simple object recognition in point clouds. It performs a coarse recognition movi
 
 
 1)git clone https://github.com/canematto/findThatObject
+
 2)cd findThatObject
+
 3)mkdir build
+
 4)cd build
+
 5)cmake ..
+
 6)make
