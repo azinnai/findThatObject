@@ -6,7 +6,7 @@
 
 # Precompiled Headers
 *.gch
-*.pch
+*.pchf
 
 # Compiled Dynamic libraries
 *.so
@@ -32,6 +32,6 @@
 *.layout
 *.depend
 
-/*
-!/src
-!/include
+*/
+!src/
+!include/

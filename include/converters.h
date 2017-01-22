@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <pcl/common/common_headers.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/keypoints/uniform_sampling.h>
 
 #include "kdTree.h"
 
