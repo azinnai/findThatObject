@@ -1,7 +1,7 @@
 **findThatObject project**
 
 
-Simple object recognition in point clouds. It performs a coarse recognition moving the object in the scene following a gaussian distribution using the center of mass of the scene as mean and its variance as sigma.
+Simple object recognition in point clouds. It performs a coarse recognition moving the object in the scene following a gaussian distribution using the center of mass of the scene as mean and its variance as sigma. The transformation with the maximum number of correspondences is kept as initial guess for ICP.
 
 
 **To install it type in terminal:**
