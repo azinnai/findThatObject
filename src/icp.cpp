@@ -154,9 +154,9 @@ Matrix4d coarseAllignment(const MatrixXd & referenceCloud, const MatrixXd & seco
 
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::normal_distribution<double> distribution_x(0.0, 6*comReferenceSTD(0));
-    std::normal_distribution<double> distribution_y(0.0, 6*comReferenceSTD(1));
-    std::normal_distribution<double> distribution_z(0.0, 6*comReferenceSTD(2));
+    std::normal_distribution<double> distribution_x(0.0, 4*comReferenceSTD(0));
+    std::normal_distribution<double> distribution_y(0.0, 4*comReferenceSTD(1));
+    std::normal_distribution<double> distribution_z(0.0, 4*comReferenceSTD(2));
 
     for(int it = 0; it < n_it; ++it){
         double rndx, rndy, rndz;

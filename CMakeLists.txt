@@ -4,7 +4,7 @@ set (CMAKE_CXX_STANDARD 11)
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} -fopenmp")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE}")
 message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS}")
 
 project(findThatObject)
@@ -17,5 +17,6 @@ add_definitions(${PCL_DEFINITIONS})
 
 file(GLOB SOURCES "src/*.cpp")
 
-add_executable(findThatObject ${SOURCES} )
+add_executable(findThatObject ${SOURCES})
+set (CMAKE_BUILD_TYPE Release)
 target_link_libraries (findThatObject ${PCL_LIBRARIES})

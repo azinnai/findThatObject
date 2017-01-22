@@ -18,3 +18,13 @@ Simple object recognition in point clouds. It performs a coarse recognition movi
 5)cmake ..
 
 6)make
+
+
+**Typical usage:**
+
+./findThatObject <options> <path_to_scene_file> <path_to_object_file> 
+
+
+**Example:**
+
+./findThatObject -v 0.02 ../globe-scene.pcd ../globe.pcd

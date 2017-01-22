@@ -18,14 +18,15 @@
 static void show_usage(std::string name)
 {
     std::cerr << "Usage: " << name << " <option(s)> SOURCES"
-              << "\nInsert exactly two point cloud sources as last arguments\n"
+              << "\nInsert exactly two point cloud sources as last arguments, better if first the scene and then the object.\n"
+              << "At least -r or -v with values has to be inserted\n"
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
-              << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.03 is a good choice\n"
-              << "\t-d,--distance\t\tSpecify the max distance between two points to be associated, default=0.02\n"
+              << "\t-r,--radius\t\tEnable Uniform Sampling, set the radius and disable Voxel Grid, normally 0.02 is a good choice\n"
+              << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.02 is a good choice\n"
+              << "\t-d,--distance\t\tSpecify the max distance between two points to be associated, default=0.008\n"
               << "\t-i,--iterations\t\tNumber of least squares iterations, default=200\n"
-              << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=50000\n"
-              << "\t-r,--radius\t\tEnable Uniform Sampling, set the radius and disable Voxel Grid, normally 0.03 is a good choice\n"
+              << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=100000\n"
               << std::endl;
 }
 
@@ -33,11 +34,11 @@ static void show_usage(std::string name)
 int main(int argc, char* argv[])
 {
     std::string path1("void"), path2("void");
-    double max_distance = 0.02f;
-    double voxelSize = 0.03f;
+    double max_distance = 0.008f;
+    double voxelSize = 0.02f;
     int n_it_max = 200;
-    int coarse_it = 50000;
-    float radiusSearchUS = 0.03f;
+    int coarse_it = 100000;
+    float radiusSearchUS = 0.02f;
     bool USampling = false;
     bool VoxelGrid = false;
     bool moveCloud = false;
@@ -50,7 +51,11 @@ int main(int argc, char* argv[])
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if ((arg == "-h") || (arg == "--help")) {
+        if(argc < 5){
+            std::cerr << "You have to provide minimum a downsampling flag and values "
+                    "and the paths for the scene and the object in order"<< std::endl;
+            return  0;
+        } else if ((arg == "-h") || (arg == "--help")) {
             show_usage(argv[0]);
             return 0;
         } else if ((arg == "-v") || (arg == "--voxel")) {
@@ -130,7 +135,7 @@ int main(int argc, char* argv[])
         return (-1);
     }
 
-    std::cout << "Reference cloud number of points before filtering:  " << reference_cloud->width * reference_cloud->height <<
+    std::cout << "\nReference cloud number of points before filtering:  " << reference_cloud->width * reference_cloud->height <<
               "\nCloud to allign number of points before filtering:  " << second_cloud->width * second_cloud->height << std::endl;
 
 
@@ -154,7 +159,6 @@ int main(int argc, char* argv[])
         exctractUSkeyPoints(second_cloud, second_cloud_filtered, radiusSearchUS);
     }
 
-
     //building KDtree
     double leaf_range = 0.02;
     VectorXdVector points(reference_cloud_filtered->width * reference_cloud_filtered->height);
@@ -165,6 +169,7 @@ int main(int argc, char* argv[])
     //converting PointCloudXYZ to 4*N Eigen Matrix needed by ICP
     MatrixXd eigen_reference_cloud_filtered;
     MatrixXd eigen_second_cloud_filtered;
+
     eigen_reference_cloud_filtered = fromPclToEigenM(reference_cloud_filtered);
     eigen_second_cloud_filtered = fromPclToEigenM(second_cloud_filtered);
 
