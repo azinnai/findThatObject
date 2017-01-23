@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <vector>
 
 #include <boost/thread/thread.hpp>
@@ -26,7 +27,7 @@ static void show_usage(std::string name)
               << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.02 is a good choice\n"
               << "\t-d,--distance\t\tSpecify the max distance between two points to be associated, default=0.008\n"
               << "\t-i,--iterations\t\tNumber of least squares iterations, default=200\n"
-              << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=100000\n"
+              << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=200000\n"
               << std::endl;
 }
 
@@ -37,7 +38,7 @@ int main(int argc, char* argv[])
     double max_distance = 0.008f;
     double voxelSize = 0.02f;
     int n_it_max = 200;
-    int coarse_it = 100000;
+    int coarse_it = 200000;
     float radiusSearchUS = 0.02f;
     bool USampling = false;
     bool VoxelGrid = false;
@@ -207,6 +208,9 @@ int main(int argc, char* argv[])
     //variables for the loop
     int n_it = 0;
     double kernel_threshold(0.1);
+    double last_error(0);
+    double error_threshold(0.0000001);
+    double inliers(0), total_points(0);
     matrix_container correspondences;
     icpResults leastSquaresResults;
     std::cout << "\nReference cloud number of points after filtering:  " << eigen_reference_cloud_filtered.cols() <<
@@ -221,7 +225,6 @@ int main(int argc, char* argv[])
               "\n\n###### ICP ######\n" << std::endl;
 
     //ICP loop with viewer
-
     //try to move a little if ICP stuck in a local minima
     while (!viewer->wasStopped() && n_it < n_it_max)
     {
@@ -233,10 +236,20 @@ int main(int argc, char* argv[])
 
 
 
-        if(n_it%5==0) {
-            std::cout << "inliers: " << float(correspondences.correspondences2.cols())/second_cloud_filtered->width << " %  "
+        if(n_it%5 == 0) {
+            if(eigen_reference_cloud_filtered.cols() > eigen_second_cloud_filtered.cols()) {
+                inliers = correspondences.correspondences1.cols();
+                total_points = eigen_second_cloud_filtered.cols();
+            }
+            else {
+                inliers = correspondences.correspondences1.cols();
+                total_points = eigen_reference_cloud_filtered.cols();
+            }
+
+            std::cout << "inliers: " << inliers/total_points << " %  "
                       " error:  " << float(leastSquaresResults.chi) << std::endl;
         }
+
         eigen_second_cloud_filtered = leastSquaresResults.newGuess * eigen_second_cloud_filtered;
         guess = leastSquaresResults.newGuess * guess;
 
@@ -253,6 +266,9 @@ int main(int argc, char* argv[])
             viewer->spinOnce(1000);
             boost::this_thread::sleep(boost::posix_time::microseconds(100000));
         }
+
+        if(std::abs(leastSquaresResults.chi - last_error) < error_threshold) break;
+        last_error = leastSquaresResults.chi;
 
         ++n_it;
     }

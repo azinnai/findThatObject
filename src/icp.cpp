@@ -177,7 +177,7 @@ Matrix4d coarseAllignment(const MatrixXd & referenceCloud, const MatrixXd & seco
             //best_chi = results.chi;
             max_correspondences = (int)correspondences.correspondences2.cols();
             std::cout << "Max correnspondeces found: " <<
-                      correspondences.correspondences2.cols() << std::endl;
+                      correspondences.correspondences2.cols() << "\tprogress: " << float(it)/n_it << " %" << std::endl;
         }
     }
     bestGuess = bestGuess * initialGuess;
