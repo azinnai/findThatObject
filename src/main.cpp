@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
                 total_points = eigen_reference_cloud_filtered.cols();
             }
 
-            std::cout << "inliers: " << inliers/total_points << " %  "
+            std::cout << "inliers: " << 100*inliers/total_points << " %  "
                       " error:  " << float(leastSquaresResults.chi) << std::endl;
         }
 
@@ -273,7 +273,8 @@ int main(int argc, char* argv[])
         ++n_it;
     }
 
-    std::cout << "\n######Best registration matrix######\n\n" << guess << std::endl;
+    std::cout << "\n########### Best registration matrix ###########\n\n" << guess <<
+                 "\n\n##############################################\n" << std::endl;
 
     return 0;
 }

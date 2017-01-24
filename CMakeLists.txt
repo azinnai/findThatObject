@@ -9,7 +9,7 @@ message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS}")
 
 project(findThatObject)
 
-find_package(PCL 1.2 REQUIRED)
+find_package(PCL 1.8 REQUIRED)
 
 include_directories(${PCL_INCLUDE_DIRS} include)
 link_directories(${PCL_LIBRARY_DIRS})
