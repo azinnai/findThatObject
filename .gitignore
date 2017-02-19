@@ -35,6 +35,8 @@
 */
 !src/
 !include/
+!gnuplot_scripts/
+!point_clouds/
 inliers.txt
 ls_error_norm.txt
 ls_error.txt

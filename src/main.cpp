@@ -280,15 +280,15 @@ int main(int argc, char* argv[])
 
     std::cout << "\n########### Best registration matrix ###########\n\n" << guess <<
                  "\n\n##############################################\n" << std::endl;
-    std::ofstream output_chi("../ls_error.txt");
+    std::ofstream output_chi("../results/ls_error.txt");
     std::ostream_iterator<double> output_iterator_chi(output_chi, "\n");
     std::copy(chi_stats.begin(), chi_stats.end(), output_iterator_chi);
 
-    std::ofstream output_inliers("../inliers.txt");
+    std::ofstream output_inliers("../results/inliers.txt");
     std::ostream_iterator<double> output_iterator_inliers(output_inliers, "\n");
     std::copy(inliers_stats.begin(), inliers_stats.end(), output_iterator_inliers);
 
-    std::ofstream output_chi_norm("../ls_error_norm.txt");
+    std::ofstream output_chi_norm("../results/ls_error_norm.txt");
     std::ostream_iterator<double> output_iterator_chi_norm(output_chi_norm, "\n");
     std::copy(chi_stats_norm.begin(), chi_stats_norm.end(), output_iterator_chi_norm);
 
