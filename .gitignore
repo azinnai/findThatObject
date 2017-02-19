@@ -35,3 +35,7 @@
 */
 !src/
 !include/
+inliers.txt
+ls_error_norm.txt
+ls_error.txt
+*.png

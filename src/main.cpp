@@ -23,8 +23,8 @@ static void show_usage(std::string name)
               << "At least -r or -v with values has to be inserted\n"
               << "Options:\n"
               << "\t-h,--help\t\tShow this help message\n"
-              << "\t-r,--radius\t\tEnable Uniform Sampling, set the radius and disable Voxel Grid, normally 0.02 is a good choice\n"
-              << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.02 is a good choice\n"
+              << "\t-r,--radius\t\tEnable Uniform Sampling, set the radius and disable Voxel Grid, normally 0.015 is a good choice\n"
+              << "\t-v,--voxel\t\tEnable downsampling with Voxel Grid and set the voxel size, normally 0.015 is a good choice\n"
               << "\t-d,--distance\t\tSpecify the max distance between two points to be associated, default=0.008\n"
               << "\t-i,--iterations\t\tNumber of least squares iterations, default=200\n"
               << "\t-c,--coarse\t\tNumber of coarse allignment iterations, default=200000\n"
@@ -211,6 +211,9 @@ int main(int argc, char* argv[])
     double last_error(0);
     double error_threshold(0.0000001);
     double inliers(0), total_points(0);
+    std::vector<double> chi_stats;
+    std::vector<double> inliers_stats;
+    std::vector<double> chi_stats_norm;
     matrix_container correspondences;
     icpResults leastSquaresResults;
     std::cout << "\nReference cloud number of points after filtering:  " << eigen_reference_cloud_filtered.cols() <<
@@ -236,7 +239,7 @@ int main(int argc, char* argv[])
 
 
 
-        if(n_it%5 == 0) {
+        if(n_it%1 == 0) {
             if(eigen_reference_cloud_filtered.cols() > eigen_second_cloud_filtered.cols()) {
                 inliers = correspondences.correspondences1.cols();
                 total_points = eigen_second_cloud_filtered.cols();
@@ -269,12 +272,26 @@ int main(int argc, char* argv[])
 
         if(std::abs(leastSquaresResults.chi - last_error) < error_threshold) break;
         last_error = leastSquaresResults.chi;
-
+        chi_stats.push_back(last_error);
+        inliers_stats.push_back((double)correspondences.correspondences1.cols()/eigen_second_cloud_filtered.cols());
+        chi_stats_norm.push_back(last_error/correspondences.correspondences1.cols());
         ++n_it;
     }
 
     std::cout << "\n########### Best registration matrix ###########\n\n" << guess <<
                  "\n\n##############################################\n" << std::endl;
+    std::ofstream output_chi("../ls_error.txt");
+    std::ostream_iterator<double> output_iterator_chi(output_chi, "\n");
+    std::copy(chi_stats.begin(), chi_stats.end(), output_iterator_chi);
+
+    std::ofstream output_inliers("../inliers.txt");
+    std::ostream_iterator<double> output_iterator_inliers(output_inliers, "\n");
+    std::copy(inliers_stats.begin(), inliers_stats.end(), output_iterator_inliers);
+
+    std::ofstream output_chi_norm("../ls_error_norm.txt");
+    std::ostream_iterator<double> output_iterator_chi_norm(output_chi_norm, "\n");
+    std::copy(chi_stats_norm.begin(), chi_stats_norm.end(), output_iterator_chi_norm);
+
 
     return 0;
 }

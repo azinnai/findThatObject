@@ -29,7 +29,12 @@ To install the program type in terminal:
 
 5)cmake ..
 
-6)make
+6)make -j4
+
+
+**Output files**
+
+The program generates three different files that show the evolution of the least square optimization. Also, for each one, a gnuplot snippet is included for easily visualization. 
 
 
 **Typical usage:**
@@ -39,4 +44,4 @@ To install the program type in terminal:
 
 **Example:**
 
-./findThatObject -v 0.02 ../globe-scene.pcd ../globe.pcd
+./findThatObject -v 0.015 ../globe-scene.pcd ../globe.pcd
